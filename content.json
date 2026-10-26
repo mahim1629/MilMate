@@ -1,0 +1,38 @@
+{
+ "version": "1.0.0",
+ "notes": "First test",
+ "notice": {
+  "text": "",
+  "until": ""
+ },
+ "ranks": [
+  "Snk",
+  "Lcpl",
+  "Cpl",
+  "Sgt",
+  "WO",
+  "SWO",
+  "MWO",
+  "NC(E)",
+  "NC(U)"
+ ],
+ "leaveTypes": [
+  "P/Lve",
+  "C/Lve",
+  "R/Lve"
+ ],
+ "vehicles": [
+  "Hexa",
+  "Jeep",
+  "Pick-up",
+  "3 Ton",
+  "Bus",
+  "Coaster"
+ ],
+ "links": {
+  "drive": "",
+  "map": "",
+  "registry": ""
+ },
+ "events": []
+}
