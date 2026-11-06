@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><script>window.MM_CONTENT=(function(){try{return JSON.parse(localStorage.getItem("milmate_content")||"null")||{}}catch(e){return {}}})();function openExt(u){try{if(parent&&parent!==window){parent.postMessage({milmate:"open",url:u},"*");return}}catch(e){}location.href=u}document.addEventListener("click",function(e){var a=e.target.closest&&e.target.closest("a[href^=\"http\"]");if(a){e.preventDefault();openExt(a.href)}},true);</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendar and Upcoming Events</title>
+<style>
+:root{--bg:#eef0e6;--card:#fff;--ink:#1f2a1a;--mute:#5d6b52;--line:#c9d0bb;--main:#3f5a2a;--main-ink:#fff;--warn:#a33a2a;--red:#c0392b;--org:#d9822b;--amb:#c9a400;--grn:#3f7a2a;--gry:#8a8f85;--wk:#f3ecdc;--sel:#dfe9d0}
+@media (prefers-color-scheme:dark){:root{--bg:#161a12;--card:#20271a;--ink:#e8ecdf;--mute:#9aa98c;--line:#3a4530;--main:#7fa65a;--main-ink:#10150c;--warn:#e08a78;--red:#e0645a;--org:#e8a05a;--amb:#e0c94a;--grn:#7fc26a;--gry:#8f968a;--wk:#2a2a20;--sel:#33422a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,"Noto Sans Bengali",sans-serif;padding:12px 12px 40px;max-width:640px;margin-inline:auto}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+h1{font-size:20px;margin:0}
+h2{font-size:15px;margin:14px 0 6px;color:var(--main)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px}
+label{display:block;font-size:13px;color:var(--mute);margin:8px 0 3px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:8px 12px}
+button.main{background:var(--main);color:var(--main-ink);border-color:var(--main);font-weight:600}
+button.del{color:var(--warn)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.tabs button.on{background:var(--main);color:var(--main-ink);border-color:var(--main);font-weight:600}
+.alert{background:var(--red);color:#fff;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-weight:600}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.nav b{font-size:17px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.dh{text-align:center;font-size:12px;color:var(--mute);padding:2px 0}
+.cell{min-height:58px;border:1px solid var(--line);border-radius:8px;padding:3px 2px;text-align:center;background:var(--card);cursor:pointer}
+.cell.wk{background:var(--wk)}.cell.out{opacity:.4}.cell.sel{background:var(--sel);border-color:var(--main)}
+.cell.hol{border-color:var(--red)}.cell.hol:not(.today) .n{color:var(--red)}
+.cell.today .n{background:var(--main);color:var(--main-ink);border-radius:10px;padding:0 6px}
+.cell .n{font-size:14px;font-weight:600;display:inline-block}
+.cell .m{font-size:11px;display:block;line-height:1}
+.dots{display:flex;justify-content:center;gap:2px;margin-top:2px;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.ev{display:flex;gap:10px;align-items:flex-start;border-left:6px solid var(--gry)}
+.ev .b{flex:1}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;color:#fff;background:var(--gry);margin-right:6px}
+.tag.red{background:var(--red)}.tag.org{background:var(--org)}.tag.amb{background:var(--amb);color:#222}.tag.grn{background:var(--grn)}
+.mute{color:var(--mute);font-size:13px}
+.chk{display:flex;gap:12px;flex-wrap:wrap;margin-top:4px}.chk label{display:flex;gap:5px;align-items:center;margin:0;color:var(--ink);font-size:14px}
+.chk input{width:auto}
+.done{opacity:.5;text-decoration:line-through}
+.toast{color:var(--main);font-weight:600;min-height:22px;margin-top:6px}
+</style>
+</head>
+<body>
+<header><h1 id="t_title"></h1><button id="langBtn"></button></header>
+<div id="alerts"></div>
+<div class="tabs"><button id="tabCal"></button><button id="tabAg"></button></div>
+<div id="calView"></div>
+<div id="agView" style="display:none"></div>
+<div class="card" id="formCard" style="display:none">
+  <label id="l_title"></label><input id="f_title">
+  <div class="g2"><div><label id="l_date"></label><input id="f_date" type="date"></div><div><label id="l_time"></label><input id="f_time" type="time"></div></div>
+  <div class="g2"><div><label id="l_rep"></label><select id="f_rep"></select></div><div><label id="l_until"></label><input id="f_until" type="date"></div></div>
+  <div class="g2"><div><label id="l_cat"></label><select id="f_cat"></select></div><div><label id="l_app"></label><input id="f_app"></div></div>
+  <label id="l_note"></label><textarea id="f_note" rows="2"></textarea>
+  <label id="l_rem"></label><div class="chk" id="f_rem"></div><div class="mute" id="l_hint"></div>
+  <div class="actions"><button class="main" id="save"></button><button id="cancel"></button></div>
+</div>
+<div class="card">
+  <div class="actions" style="margin-top:0"><button id="notif"></button><button id="copyList"></button><button id="exp"></button><button id="imp"></button></div>
+  <div class="mute" id="t_nnote" style="margin-top:8px"></div>
+  <textarea id="io" rows="3" style="margin-top:8px;display:none"></textarea>
+  <div class="actions"><button class="main" id="doImp" style="display:none"></button></div>
+  <div class="toast" id="toast"></div>
+</div>
+<script>
+
+const R=Math.PI/180, nrm=x=>((x%360)+360)%360, sn=x=>Math.sin(x*R), cs=x=>Math.cos(x*R);
+// Meeus ch.47 (D,M,M',F, sum_l 1e-6 deg, sum_r 1e-3 km)
+const TL=[[0,0,1,0,6288774,-20905355],[2,0,-1,0,1274027,-3699111],[2,0,0,0,658314,-2955968],[0,0,2,0,213618,-569925],[0,1,0,0,-185116,48888],[0,0,0,2,-114332,-3149],[2,0,-2,0,58793,246158],[2,-1,-1,0,57066,-152138],[2,0,1,0,53322,-170733],[2,-1,0,0,45758,-204586],[0,1,-1,0,-40923,-129620],[1,0,0,0,-34720,108743],[0,1,1,0,-30383,104755],[2,0,0,-2,15327,10321],[0,0,1,2,-12528,0],[0,0,1,-2,10980,79661],[4,0,-1,0,10675,-34782],[0,0,3,0,10034,-23210],[4,0,-2,0,8548,-21636],[2,1,-1,0,-7888,24208],[2,1,0,0,-6766,30824],[1,0,-1,0,-5163,-8379],[1,1,0,0,4987,-16675],[2,-1,1,0,4036,-12831],[2,0,2,0,3994,-10445],[4,0,0,0,3861,-11650],[2,0,-3,0,3665,14403],[0,1,-2,0,-2689,-7003],[2,0,-1,2,-2602,0],[2,-1,-2,0,2390,10056],[1,0,1,0,2236,6322],[2,-2,0,0,-2120,-9884],[0,1,2,0,-2069,5751],[2,-2,-1,0,2048,-4950],[2,0,1,-2,-1773,4130],[2,0,0,2,-1595,0],[4,-1,-1,0,1215,-3958],[0,0,2,2,-1110,0],[3,0,-1,0,-892,3258],[2,1,1,0,-810,2616],[4,-1,-2,0,759,-1897],[0,2,-1,0,-713,-2117],[2,2,-1,0,-700,2354],[2,1,-2,0,691,0],[2,-1,0,-2,596,0],[4,0,1,0,549,-1423],[0,0,4,0,537,-1117],[4,-1,0,0,520,-1571],[1,0,-2,0,-487,-1739],[2,1,0,-2,-399,0],[0,0,2,-2,-381,-4421],[1,1,1,0,351,0],[3,0,-2,0,-340,0],[4,0,-3,0,330,0],[2,-1,2,0,327,0],[0,2,1,0,-323,1165],[1,1,-1,0,299,0],[2,0,3,0,294,0],[2,0,-1,-2,0,8752]];
+const TB=[[0,0,0,1,5128122],[0,0,1,1,280602],[0,0,1,-1,277693],[2,0,0,-1,173237],[2,0,-1,1,55413],[2,0,-1,-1,46271],[2,0,0,1,32573],[0,0,2,1,17198],[2,0,1,-1,9266],[0,0,2,-1,8822],[2,-1,0,-1,8216],[2,0,-2,-1,4324],[2,0,1,1,4200],[2,1,0,-1,-3359],[2,-1,-1,1,2463],[2,-1,0,1,2211],[2,-1,-1,-1,2065],[0,1,-1,-1,-1870],[4,0,-1,-1,1828],[0,1,0,1,-1794],[0,0,0,3,-1749],[0,1,-1,1,-1565],[1,0,0,1,-1491],[0,1,1,1,-1475],[0,1,1,-1,-1410],[0,1,0,-1,-1344],[1,0,0,-1,-1335],[0,0,3,1,1107],[4,0,0,-1,1021],[4,0,-1,1,833]];
+function sunPos(jd){
+  const T=(jd-2451545)/36525;
+  const L0=280.46646+36000.76983*T+0.0003032*T*T, M=357.52911+35999.05029*T-0.0001537*T*T, e=0.016708634-0.000042037*T;
+  const C=(1.914602-0.004817*T-0.000014*T*T)*sn(M)+(0.019993-0.000101*T)*sn(2*M)+0.000289*sn(3*M);
+  const om=125.04-1934.136*T, lon=nrm(L0+C-0.00569-0.00478*sn(om)), nu=M+C;
+  const dist=1.000001018*(1-e*e)/(1+e*cs(nu));
+  const eps=23.439291-0.0130042*T+0.00256*cs(om);
+  return {lon,dist,...eq(lon,0,eps)};
+}
+function eq(lon,lat,eps){
+  const ra=nrm(Math.atan2(sn(lon)*cs(eps)-Math.tan(lat*R)*sn(eps),cs(lon))/R);
+  const dec=Math.asin(sn(lat)*cs(eps)+cs(lat)*sn(eps)*sn(lon))/R;
+  return {ra,dec};
+}
+function moonPos(jd){
+  const T=(jd-2451545)/36525;
+  const Lp=nrm(218.3164477+481267.88123421*T-0.0015786*T*T), D=nrm(297.8501921+445267.1114034*T-0.0018819*T*T),
+        M=nrm(357.5291092+35999.0502909*T-0.0001536*T*T), Mp=nrm(134.9633964+477198.8675055*T+0.0087414*T*T),
+        F=nrm(93.2720950+483202.0175233*T-0.0036539*T*T), E=1-0.002516*T-0.0000074*T*T;
+  const A1=119.75+131.849*T, A2=53.09+479264.290*T, A3=313.45+481266.484*T;
+  let sl=0,sr=0,sb=0;
+  for(const [d,m,mp,f,l,r] of TL){const ef=Math.abs(m)===1?E:Math.abs(m)===2?E*E:1;const a=d*D+m*M+mp*Mp+f*F;sl+=l*ef*sn(a);sr+=r*ef*cs(a)}
+  for(const [d,m,mp,f,b] of TB){const ef=Math.abs(m)===1?E:Math.abs(m)===2?E*E:1;sb+=b*ef*sn(d*D+m*M+mp*Mp+f*F)}
+  sl+=3958*sn(A1)+1962*sn(Lp-F)+318*sn(A2);
+  sb+=-2235*sn(Lp)+382*sn(A3)+175*sn(A1-F)+175*sn(A1+F)+127*sn(Lp-Mp)-115*sn(Lp+Mp);
+  const om=125.04452-1934.136261*T, Ls=280.4665+36000.7698*T;
+  const lon=nrm(Lp+sl/1e6-0.00478*sn(om)-0.00036*sn(2*Ls)), lat=sb/1e6, dist=385000.56+sr/1000;
+  const eps=23.439291-0.0130042*T+0.00256*cs(om);
+  return {lon,lat,dist,...eq(lon,lat,eps)};
+}
+const gmst=jd=>{const T=(jd-2451545)/36525;return nrm(280.46061837+360.98564736629*(jd-2451545)+0.000387933*T*T)};
+const altOf=(p,jd,lat,lon)=>{const H=gmst(jd)+lon-p.ra;return Math.asin(sn(lat)*sn(p.dec)+cs(lat)*cs(p.dec)*cs(H))/R};
+const moonAlt=(jd,lat,lon)=>altOf(moonPos(jd),jd,lat,lon);
+const sunAlt=(jd,lat,lon)=>altOf(sunPos(jd),jd,lat,lon);
+const moonH0=jd=>{const hp=Math.asin(6378.14/moonPos(jd).dist)/R;return 0.7275*hp-0.5667};
+// crossings of f(jd)=th inside [a,b]
+function cross(f,th,a,b,step=1/288){
+  const out=[];let t0=a,v0=f(t0)-th;
+  for(let t=a+step;t<=b+1e-9;t+=step){
+    const v1=f(t)-th;
+    if((v0<0)!==(v1<0)){let lo=t-step,hi=t,vl=v0;
+      for(let i=0;i<24;i++){const mid=(lo+hi)/2,vm=f(mid)-th;if((vm<0)===(vl<0)){lo=mid;vl=vm}else hi=mid}
+      out.push({jd:(lo+hi)/2,rising:v1>v0})}
+    t0=t;v0=v1;
+  }
+  return out;
+}
+function phaseAt(jd){
+  const m=moonPos(jd),s=sunPos(jd);
+  const elong=nrm(m.lon-s.lon), cosPsi=cs(m.lat)*cs(m.lon-s.lon), psi=Math.acos(cosPsi)/R;
+  const i=Math.atan2(s.dist*149597870.7*sn(psi),m.dist-s.dist*149597870.7*cosPsi)/R;
+  return {elong,illum:(1+cs(i))/2*100,age:elong/360*29.530588};
+}
+function phaseName(e){
+  const n=[["New Moon",0],["Waxing Crescent",45],["First Quarter",90],["Waxing Gibbous",135],["Full Moon",180],["Waning Gibbous",225],["Last Quarter",270],["Waning Crescent",315]];
+  let best=n[0],bd=999;for(const x of n){const d=Math.min(Math.abs(e-x[1]),360-Math.abs(e-x[1]));if(d<bd){bd=d;best=x}}
+  return bd<=6?best[0]:(e<90?"Waxing Crescent":e<180?"Waxing Gibbous":e<270?"Waning Gibbous":"Waning Crescent");
+}
+// Name of the moon for a whole local day: a principal phase (new, first quarter, full, last quarter) is named on the day it happens
+const softName=e=>e<90?"Waxing Crescent":e<180?"Waxing Gibbous":e<270?"Waning Gibbous":"Waning Crescent";
+function dayPhase(jd0){
+  const el=j=>nrm(moonPos(j).lon-sunPos(j).lon), a=el(jd0), b=el(jd0+1), qa=Math.floor(a/90), qb=Math.floor(b/90);
+  if(qa!==qb&&((b-a+360)%360)<90){
+    const tg=((qa+1)%4)*90, g=j=>nrm(el(j)-tg+180)-180;
+    let lo=jd0,hi=jd0+1;for(let i=0;i<40;i++){const mid=(lo+hi)/2;if(g(mid)>=0)hi=mid;else lo=mid}
+    return {name:["New Moon","First Quarter","Full Moon","Last Quarter"][(qa+1)%4],jd:(lo+hi)/2};
+  }
+  return {name:softName(el(jd0+0.5)),jd:null};
+}
+// Quarter = 1st (new->first quarter), 2nd (->full), 3rd (->last quarter), 4th (->new). Day 1 = calendar date on which the quarter began.
+function quarterDay(jd0,tz){
+  const jm=jd0+1, el=j=>nrm(moonPos(j).lon-sunPos(j).lon), q=Math.floor(el(jm)/90), tg=q*90;
+  const g=j=>nrm(el(j)-tg+180)-180;
+  let lo=jm-9,hi=jm;for(let i=0;i<50;i++){const mid=(lo+hi)/2;if(g(mid)>=0)hi=mid;else lo=mid}
+  const dn=j=>Math.floor(j+tz/24+0.5+1e-6);
+  return {q:q+1,day:dn(jd0)-dn(hi)+1};
+}
+function compute(y,mo,d,lat,lon,tz=6){
+  const jd0=Date.UTC(y,mo-1,d)/864e5+2440587.5-tz/24;
+  const out={};
+  const mr=cross(j=>moonAlt(j,lat,lon)-moonH0(j),0,jd0,jd0+1);
+  out.moonrise=mr.filter(e=>e.rising).map(e=>e.jd);out.moonset=mr.filter(e=>!e.rising).map(e=>e.jd);
+  const sr=cross(j=>sunAlt(j,lat,lon),-0.833,jd0,jd0+1);
+  out.sunrise=(sr.find(e=>e.rising)||{}).jd;out.sunset=(sr.find(e=>!e.rising)||{}).jd;
+  const nt=cross(j=>sunAlt(j,lat,lon),-12,jd0,jd0+1);
+  out.bmnt=(nt.find(e=>e.rising)||{}).jd;out.eent=(nt.find(e=>!e.rising)||{}).jd;
+  // moonlight during the night: EENT (this evening) to BMNT (next morning)
+  const nt2=cross(j=>sunAlt(j,lat,lon),-12,jd0+1,jd0+2);
+  const bm2=(nt2.find(e=>e.rising)||{}).jd;
+  out.nightStart=out.eent;out.nightEnd=bm2;out.windows=[];
+  if(out.eent&&bm2){
+    let up=false,st=0;
+    for(let j=out.eent;j<=bm2+1e-9;j+=1/1440){
+      const u=moonAlt(j,lat,lon)>moonH0(j);
+      if(u&&!up){st=j;up=true}
+      if(!u&&up){out.windows.push([st,j]);up=false}
+    }
+    if(up)out.windows.push([st,bm2]);
+  }
+  out.dark=[];
+  if(out.eent&&bm2){let cur=out.eent;for(const w of out.windows){if(w[0]>cur)out.dark.push([cur,w[0]]);cur=Math.max(cur,w[1])}if(cur<bm2-1e-9)out.dark.push([cur,bm2])}
+  out.ph=phaseAt(jd0+1);out.jd0=jd0;out.qd=quarterDay(jd0,tz);
+  return out;
+}
+
+const TXT={
+ en:{title:"Calendar and Events",tabCal:"Calendar",tabAg:"Agenda",add:"+ Add event",addOn:"+ Add event on this day",lang:"বাংলা",title_:"Event",date:"Date",time:"Time (optional)",cat:"Type",app:"Appointment / who (optional)",note:"Note",rem:"Remind me",
+  hint:"Hour reminders (1 or 2 hours before) need a time.",rep:"Repeat",until:"Repeat until (optional)",reps:["Does not repeat","Every day","Every week","Every month","Every year"],
+  rr:{0:"On the day",10080:"1 week before",2880:"2 days before",1440:"1 day before",120:"2 hours before",60:"1 hour before"},
+  save:"Save",cancel:"Cancel",today:"TODAY",tom:"TOMORROW",inN:"in {n} days",inH:"in {h}h {m}m",past:"Past",g0:"Today",g1:"Tomorrow",g2:"Next 7 days",g3:"Later (90 days)",g4:"Past 30 days",none:"No events.",
+  alert:"Needs attention:",notif:"Turn on alerts",copyList:"Copy list",exp:"Export",imp:"Import",doImp:"Add these events",today2:"Today",
+  nnote:"Alerts appear on this screen and, once you allow them, as a phone notification while the app is open. Alerts when the app is closed need the packaged Android app.",
+  copied:"Copied.",imported:"Events added: ",bad:"That text is not a valid events list.",ask:"Delete this event (all repeats)?",granted:"Alerts are on.",denied:"Alerts are not allowed on this phone.",
+  cats:["Duty","Training","Parade","Meeting","Move","Return / Report","Other"],wd:["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],mo:["January","February","March","April","May","June","July","August","September","October","November","December"],
+  moon:"Moon",illum:"lit",qtr:"Quarter",day:"Day",holiday:"HOLIDAY",moonnote:"Date may change by a day with the moon sighting"},
+ bn:{title:"ক্যালেন্ডার ও ইভেন্ট",tabCal:"ক্যালেন্ডার",tabAg:"এজেন্ডা",add:"+ ইভেন্ট যোগ করুন",addOn:"+ এই দিনে ইভেন্ট যোগ করুন",lang:"English",title_:"ইভেন্ট",date:"তারিখ",time:"সময় (ঐচ্ছিক)",cat:"ধরন",app:"অ্যাপয়েন্টমেন্ট / কে (ঐচ্ছিক)",note:"নোট",rem:"আমাকে মনে করিয়ে দিন",
+  hint:"ঘণ্টার রিমাইন্ডারের (১ বা ২ ঘণ্টা আগে) জন্য সময় দিন।",rep:"পুনরাবৃত্তি",until:"পুনরাবৃত্তি শেষ (ঐচ্ছিক)",reps:["পুনরাবৃত্তি নেই","প্রতিদিন","প্রতি সপ্তাহে","প্রতি মাসে","প্রতি বছর"],
+  rr:{0:"সেই দিন",10080:"১ সপ্তাহ আগে",2880:"২ দিন আগে",1440:"১ দিন আগে",120:"২ ঘণ্টা আগে",60:"১ ঘণ্টা আগে"},
+  save:"সংরক্ষণ",cancel:"বাতিল",today:"আজ",tom:"আগামীকাল",inN:"{n} দিন পরে",inH:"{h} ঘণ্টা {m} মিনিট পরে",past:"অতীত",g0:"আজ",g1:"আগামীকাল",g2:"পরবর্তী ৭ দিন",g3:"পরে (৯০ দিন)",g4:"গত ৩০ দিন",none:"কোনো ইভেন্ট নেই।",
+  alert:"মনোযোগ দরকার:",notif:"অ্যালার্ট চালু করুন",copyList:"তালিকা কপি",exp:"এক্সপোর্ট",imp:"ইম্পোর্ট",doImp:"এই ইভেন্টগুলো যোগ করুন",today2:"আজ",
+  nnote:"অ্যালার্ট এই স্ক্রিনে দেখাবে এবং অনুমতি দিলে অ্যাপ খোলা থাকলে ফোন নোটিফিকেশনও আসবে। অ্যাপ বন্ধ থাকলে অ্যালার্টের জন্য প্যাকেজ করা অ্যান্ড্রয়েড অ্যাপ লাগবে।",
+  copied:"কপি হয়েছে।",imported:"যোগ হয়েছে: ",bad:"এটি সঠিক ইভেন্ট তালিকা নয়।",ask:"ইভেন্টটি (সব পুনরাবৃত্তিসহ) মুছবেন?",granted:"অ্যালার্ট চালু।",denied:"এই ফোনে অ্যালার্টের অনুমতি নেই।",
+  cats:["ডিউটি","প্রশিক্ষণ","প্যারেড","মিটিং","মুভমেন্ট","রিটার্ন / রিপোর্ট","অন্যান্য"],wd:["রবি","সোম","মঙ্গল","বুধ","বৃহ","শুক্র","শনি"],mo:["জানুয়ারি","ফেব্রুয়ারি","মার্চ","এপ্রিল","মে","জুন","জুলাই","আগস্ট","সেপ্টেম্বর","অক্টোবর","নভেম্বর","ডিসেম্বর"],
+  moon:"চাঁদ",illum:"আলোকিত",qtr:"কোয়ার্টার",day:"দিন",holiday:"সরকারি ছুটি",moonnote:"চাঁদ দেখার উপর নির্ভর করে একদিন বদলাতে পারে"}
+};
+const CATS=["Duty","Training","Parade","Meeting","Move","Return / Report","Other"];
+const COL={"Duty":"#2d6cdf","Training":"#3f9a2a","Parade":"#8e44ad","Meeting":"#d9822b","Move":"#16a085","Return / Report":"#c0392b","Other":"#7f8c8d"};
+const RMS=[0,10080,2880,1440,120,60];
+const KEY="events_v2";
+let S={lang:"en",events:[],notified:{},tab:"cal"};
+const $=id=>document.getElementById(id), t=k=>TXT[S.lang][k];
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const dn=v=>{const [y,m,d]=v.split("-").map(Number);return Math.round(Date.UTC(y,m-1,d)/864e5)};
+const nStr=n=>{const d=new Date(n*864e5);return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0")};
+const todayN=()=>{const n=new Date();return Math.round(Date.UTC(n.getFullYear(),n.getMonth(),n.getDate())/864e5)};
+const nowMin=()=>{const n=new Date();return n.getHours()*60+n.getMinutes()};
+const dow=n=>((n+4)%7+7)%7;
+const fdn=n=>{const d=new Date(n*864e5);return d.getUTCDate()+" "+MON[d.getUTCMonth()]+" "+d.getUTCFullYear()};
+const esc=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+// normalise an event (also converts the older day-based reminders)
+function norm(e){
+  const o={id:String(e.id),title:String(e.title),date:e.date,time:e.time||"",cat:e.cat||"Other",app:e.app||"",note:e.note||"",rep:e.rep||"none",until:e.until||"",done:{}};
+  o.rm=Array.isArray(e.rm)?e.rm.map(Number):Array.isArray(e.rem)?e.rem.map(v=>Number(v)*1440):[1440,0];
+  if(!o.rm.length)o.rm=[0];
+  if(e.done&&typeof e.done==="object")o.done=e.done;else if(e.done===true)o.done[e.date]=true;
+  return o;
+}
+try{
+  const raw=localStorage.getItem(KEY)||localStorage.getItem("events_v1");
+  if(raw){const p=JSON.parse(raw);Object.assign(S,p);S.events=(p.events||[]).map(norm)}
+}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+function occ(e,a,b){
+  const s=dn(e.date),end=Math.min(b,e.until?dn(e.until):Infinity),out=[];
+  if(e.rep==="daily"||e.rep==="weekly"){const st=e.rep==="daily"?1:7;let n=s;if(n<a)n+=Math.ceil((a-n)/st)*st;for(;n<=end;n+=st)out.push(n)}
+  else if(e.rep==="monthly"||e.rep==="yearly"){
+    const d0=new Date(s*864e5),D=d0.getUTCDate();let y=d0.getUTCFullYear(),m=d0.getUTCMonth();
+    for(let i=0;i<6000;i++){
+      const n=Math.round(Date.UTC(y,m,D)/864e5);
+      if(n>end)break;
+      if(new Date(n*864e5).getUTCDate()===D&&n>=a)out.push(n);
+      if(e.rep==="monthly"){m++;if(m>11){m=0;y++}}else y++;
+    }
+  }else if(s>=a&&s<=end)out.push(s);
+  return out;
+}
+const isDone=(e,n)=>!!(e.done&&e.done[nStr(n)]);
+function minsUntil(e,n){if(!e.time)return null;const [h,m]=e.time.split(":").map(Number);return (n-todayN())*1440+h*60+m-nowMin()}
+function hit(e,n,r){
+  const dd=n-todayN(),mu=minsUntil(e,n);
+  if(dd<0||(mu!==null&&mu<0))return false;
+  if(r===0)return dd===0;
+  if(r>=1440)return dd<=r/1440;
+  return mu!==null&&mu<=r;
+}
+const attention=(e,n)=>!isDone(e,n)&&e.rm.some(r=>hit(e,n,r));
+function label(e,n){
+  const dd=n-todayN(),mu=minsUntil(e,n);
+  if(dd<0)return t("past");
+  if(dd===0&&mu!==null&&mu>=0&&mu<720)return t("inH").replace("{h}",Math.floor(mu/60)).replace("{m}",mu%60);
+  return dd===0?t("today"):dd===1?t("tom"):t("inN").replace("{n}",dd);
+}
+const color=(e,n)=>{const d=n-todayN();return d<0?"":d===0?"red":d===1?"org":d<=7?"amb":"grn"};
+const moonIcon=el=>["🌑","🌒","🌓","🌔","🌕","🌖","🌗","🌘"][Math.round(el/45)%8];
+const dpc={};
+const dayP=n=>dpc[n]||(dpc[n]=dayPhase(n+2440587.5-6/24));
+const ICON={"New Moon":"🌑","First Quarter":"🌓","Full Moon":"🌕","Last Quarter":"🌗","Waxing Crescent":"🌒","Waxing Gibbous":"🌔","Waning Gibbous":"🌖","Waning Crescent":"🌘"};
+const dayIcon=n=>ICON[dayP(n).name]||"🌙";
+const hmj=jd=>{const d=new Date(Math.round((jd-2440587.5)*1440)*6e4+6*36e5);return String(d.getUTCHours()).padStart(2,"0")+String(d.getUTCMinutes()).padStart(2,"0")};
+const mcache={};
+function moonDay(n){
+  if(!mcache[n]){const jd0=n+2440587.5-6/24;mcache[n]=phaseAt(jd0+1)}
+  return mcache[n];
+}
+let editId=null,vy,vm,selN=todayN();
+{const d=new Date();vy=d.getFullYear();vm=d.getMonth()}
+
+const HOL_DEFAULT=[["2026-02-04", "Shab-e-Barat", 1], ["2026-02-21", "Shaheed Day and International Mother Language Day", 0], ["2026-03-17", "Shab-e-Qadr", 1], ["2026-03-19", "Eid ul Fitr holiday", 1], ["2026-03-20", "Jumatul Bida and Eid ul Fitr holiday", 1], ["2026-03-21", "Eid ul Fitr", 1], ["2026-03-22", "Eid ul Fitr holiday", 1], ["2026-03-23", "Eid ul Fitr holiday", 1], ["2026-03-26", "Independence and National Day", 0], ["2026-04-14", "Pahela Baishakh", 0], ["2026-05-01", "May Day and Buddha Purnima", 0], ["2026-05-26", "Eid ul Azha holiday", 1], ["2026-05-27", "Eid ul Azha holiday", 1], ["2026-05-28", "Eid ul Azha", 1], ["2026-05-29", "Eid ul Azha holiday", 1], ["2026-05-30", "Eid ul Azha holiday", 1], ["2026-05-31", "Eid ul Azha holiday", 1], ["2026-06-26", "Ashura", 1], ["2026-08-05", "July Mass Uprising Day", 0], ["2026-08-26", "Eid-e-Miladunnabi", 1], ["2026-09-04", "Janmashtami", 0], ["2026-10-20", "Durga Puja (Mahanabami)", 0], ["2026-10-21", "Durga Puja (Bijoya Dashami)", 0], ["2026-11-07", "National Revolution and Solidarity Day", 0], ["2026-12-16", "Victory Day", 0], ["2026-12-25", "Christmas Day", 0]];
+const HOL=(function(){const m={};HOL_DEFAULT.forEach(x=>m[x[0]]={name:x[1],moon:!!x[2]});const c=(window.MM_CONTENT&&MM_CONTENT.holidays)||[];c.forEach(x=>{if(x&&x.date&&x.name)m[x.date]={name:x.name,moon:!!x.moon}});return m})();
+const holOf=n=>HOL[nStr(n)];
+function holItems(a,b){const o=[];for(const k in HOL){const n=dn(k);if(n>=a&&n<=b)o.push({n,e:{hol:true,title:HOL[k].name,moon:HOL[k].moon,id:"h"+k,cat:"Holiday"}})}return o}
+function allOcc(a,b){
+  const out=[];
+  for(const e of S.events)for(const n of occ(e,a,b))out.push({e,n});
+  return out.sort((x,y)=>x.n-y.n||(x.e.time||"24:00").localeCompare(y.e.time||"24:00"));
+}
+function card(x){
+  if(x.e.hol)return '<div class="card ev" style="border-left-color:var(--red)"><div class="b"><span class="tag red">'+t("holiday")+'</span><b>'+esc(x.e.title)+'</b><div class="mute">'+fdn(x.n)+(x.e.moon?" · "+t("moonnote"):"")+'</div></div></div>';
+  const {e,n}=x,c=color(e,n),ci=CATS.indexOf(e.cat),dn_=isDone(e,n);
+  return '<div class="card ev" style="border-left-color:'+(COL[e.cat]||"#888")+'"><input type="checkbox" data-done="'+e.id+'|'+n+'" '+(dn_?"checked":"")+' style="width:22px;margin-top:4px"><div class="b '+(dn_?"done":"")+'">'+
+   '<span class="tag '+c+'">'+label(e,n)+'</span><b>'+esc(e.title)+'</b>'+(e.rep!=="none"?' ↻':'')+
+   '<div class="mute">'+fdn(n)+(e.time?" · "+e.time.replace(":","")+" hrs":"")+" · "+(ci>=0?t("cats")[ci]:esc(e.cat))+(e.app?" · "+esc(e.app):"")+'</div>'+(e.note?'<div>'+esc(e.note)+'</div>':"")+'</div>'+
+   '<div><button data-edit="'+e.id+'">✎</button> <button class="del" data-del="'+e.id+'">✕</button></div></div>';
+}
+function renderAlerts(){
+  const T=todayN(),att=allOcc(T,T+8).filter(x=>attention(x.e,x.n));
+  $("alerts").innerHTML=att.length?'<div class="alert">⚠ '+t("alert")+' '+att.map(x=>esc(x.e.title)+' ('+label(x.e,x.n)+')').join(", ")+'</div>':"";
+}
+function renderCal(){
+  const first=Math.round(Date.UTC(vy,vm,1)/864e5),start=first-dow(first),end=start+41;
+  const map={};for(const x of allOcc(start,end))(map[x.n]=map[x.n]||[]).push(x);
+  let h='<div class="card"><div class="nav"><button data-nav="-1">◀</button><b>'+t("mo")[vm]+' '+vy+'</b><button data-nav="1">▶</button><button data-nav="0">'+t("today2")+'</button></div><div class="grid">'+
+    t("wd").map(w=>'<div class="dh">'+w+'</div>').join("");
+  for(let n=start;n<=end;n++){
+    const d=new Date(n*864e5),inM=d.getUTCMonth()===vm,w=dow(n),ev=map[n]||[];
+    h+='<div class="cell'+(w>=5?" wk":"")+(inM?"":" out")+(n===todayN()?" today":"")+(n===selN?" sel":"")+(holOf(n)?" hol":"")+'" data-day="'+n+'"><span class="n">'+d.getUTCDate()+'</span><span class="m">'+dayIcon(n)+'</span><div class="dots">'+(holOf(n)?'<span class="dot" style="background:var(--red)"></span>':'')+
+      ev.slice(0,3).map(x=>'<span class="dot" style="background:'+(COL[x.e.cat]||"#888")+'"></span>').join("")+'</div></div>';
+  }
+  h+='</div></div>';
+  const ph=moonDay(selN),qd=quarterDay(selN+2440587.5-6/24,6),ord=["","1st","2nd","3rd","4th"][qd.q];
+  const list=(map[selN]||allOcc(selN,selN));
+  h+='<div class="card"><b>'+fdn(selN)+'</b><div class="mute">'+dayIcon(selN)+' '+t("moon")+': '+dayP(selN).name+(dayP(selN).jd?' ('+hmj(dayP(selN).jd)+' hrs)':'')+', '+ph.illum.toFixed(0)+'% '+t("illum")+' · '+ord+' '+t("qtr")+', '+t("day")+' '+qd.day+'</div>'+(holOf(selN)?'<div style="margin-top:6px"><span class="tag red">'+t("holiday")+'</span> <b>'+esc(holOf(selN).name)+'</b>'+(holOf(selN).moon?'<div class="mute">'+t("moonnote")+'</div>':'')+'</div>':'')+
+    '<div class="actions"><button class="main" data-addday="'+selN+'">'+t("addOn")+'</button></div></div>'+(list.length?list.map(card).join(""):'<div class="card mute">'+t("none")+'</div>');
+  $("calView").innerHTML=h;
+}
+function renderAgenda(){
+  const T=todayN(),items=allOcc(T-30,T+90).concat(holItems(T-30,T+90)).sort((x,y)=>x.n-y.n);
+  const groups=[[0,x=>x.n===T],[1,x=>x.n===T+1],[2,x=>x.n>=T+2&&x.n<=T+7],[3,x=>x.n>T+7],[4,x=>x.n<T]];
+  let h="";
+  for(const [g,f] of groups){const l=items.filter(f);if(!l.length)continue;h+='<h2>'+t("g"+g)+'</h2>'+(g===4?l.reverse():l).map(card).join("")}
+  $("agView").innerHTML=h||'<div class="card mute">'+t("none")+'</div>';
+  $("agView").insertAdjacentHTML("afterbegin",'<button class="main" data-addday="'+T+'" style="width:100%">'+t("add")+'</button>');
+}
+function render(){
+  document.documentElement.lang=S.lang;
+  $("t_title").textContent=t("title");$("langBtn").textContent=t("lang");
+  $("tabCal").textContent=t("tabCal");$("tabAg").textContent=t("tabAg");
+  $("tabCal").className=S.tab==="cal"?"on":"";$("tabAg").className=S.tab==="ag"?"on":"";
+  $("calView").style.display=S.tab==="cal"?"block":"none";$("agView").style.display=S.tab==="ag"?"block":"none";
+  for(const [id,k] of [["l_title","title_"],["l_date","date"],["l_time","time"],["l_cat","cat"],["l_app","app"],["l_note","note"],["l_rem","rem"],["l_hint","hint"],["l_rep","rep"],["l_until","until"],["save","save"],["cancel","cancel"],["notif","notif"],["copyList","copyList"],["exp","exp"],["imp","imp"],["doImp","doImp"],["t_nnote","nnote"]])$(id).textContent=t(k);
+  $("f_cat").innerHTML=CATS.map((c,i)=>'<option value="'+c+'">'+t("cats")[i]+'</option>').join("");
+  $("f_rep").innerHTML=["none","daily","weekly","monthly","yearly"].map((c,i)=>'<option value="'+c+'">'+t("reps")[i]+'</option>').join("");
+  if(!$("f_rem").children.length||$("f_rem").dataset.lang!==S.lang){
+    $("f_rem").innerHTML=RMS.map(v=>'<label><input type="checkbox" data-r="'+v+'" '+(v===0||v===1440?"checked":"")+'>'+t("rr")[v]+'</label>').join("");$("f_rem").dataset.lang=S.lang;
+  }
+  renderAlerts();renderCal();renderAgenda();save();
+}
+function openForm(e,dateN){
+  editId=e?e.id:null;$("formCard").style.display="block";
+  $("f_title").value=e?e.title:"";$("f_date").value=e?e.date:nStr(dateN||todayN());$("f_time").value=e?e.time:"";$("f_cat").value=e?e.cat:"Duty";
+  $("f_app").value=e?e.app:"";$("f_note").value=e?e.note:"";$("f_rep").value=e?e.rep:"none";$("f_until").value=e?e.until:"";
+  document.querySelectorAll("[data-r]").forEach(x=>x.checked=e?e.rm.includes(+x.dataset.r):(+x.dataset.r===0||+x.dataset.r===1440));
+  $("formCard").scrollIntoView({behavior:"smooth"});$("f_title").focus();
+}
+$("cancel").onclick=()=>$("formCard").style.display="none";
+$("save").onclick=()=>{
+  const title=$("f_title").value.trim(),date=$("f_date").value;if(!title||!date)return;
+  const rm=[...document.querySelectorAll("[data-r]")].filter(x=>x.checked).map(x=>+x.dataset.r);
+  const o=norm({id:editId||("e"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)),title,date,time:$("f_time").value,cat:$("f_cat").value,app:$("f_app").value.trim(),note:$("f_note").value.trim(),rep:$("f_rep").value,until:$("f_until").value,rm:rm.length?rm:[0]});
+  if(editId){const i=S.events.findIndex(x=>x.id===editId);o.done=S.events[i].done;S.events[i]=o}else S.events.push(o);
+  $("formCard").style.display="none";selN=dn(date);{const d=new Date(selN*864e5);vy=d.getUTCFullYear();vm=d.getUTCMonth()}
+  render();checkNotify();
+};
+document.addEventListener("click",ev=>{
+  const el=ev.target.closest("[data-day],[data-nav],[data-addday],[data-edit],[data-del]");if(!el)return;const d=el.dataset;
+  if(d.day){selN=+d.day;const x=new Date(selN*864e5);if(x.getUTCMonth()!==vm){vy=x.getUTCFullYear();vm=x.getUTCMonth()}render()}
+  else if(d.nav!==undefined){if(d.nav==="0"){const x=new Date();vy=x.getFullYear();vm=x.getMonth();selN=todayN()}else{vm+=+d.nav;if(vm<0){vm=11;vy--}if(vm>11){vm=0;vy++}}render()}
+  else if(d.addday)openForm(null,+d.addday);
+  else if(d.edit)openForm(S.events.find(x=>x.id===d.edit));
+  else if(d.del&&confirm(t("ask"))){S.events=S.events.filter(x=>x.id!==d.del);render()}
+});
+document.addEventListener("change",ev=>{
+  const v=ev.target.dataset.done;if(!v)return;const [id,n]=v.split("|"),e=S.events.find(x=>x.id===id);
+  if(ev.target.checked)e.done[nStr(+n)]=true;else delete e.done[nStr(+n)];render();
+});
+$("tabCal").onclick=()=>{S.tab="cal";render()};$("tabAg").onclick=()=>{S.tab="ag";render()};
+const toast=m=>{$("toast").textContent=m;setTimeout(()=>$("toast").textContent="",3500)};
+$("copyList").onclick=async()=>{
+  const T=todayN(),up=allOcc(T,T+30).filter(x=>!isDone(x.e,x.n)),d=new Date();
+  const L=["Assalamu Alaikum sir,","","*Subj:* Upcoming Events","*Dt:* "+d.getDate()+" "+MON[d.getMonth()]+" "+d.getFullYear()+".",""];
+  up.forEach((x,i)=>L.push("*"+(i+1)+". "+fdn(x.n)+(x.e.time?" ("+x.e.time.replace(":","")+" hrs)":"")+":* "+x.e.title+(x.e.app?" - "+x.e.app:"")));
+  L.push("","With Profound Regards.");
+  try{await navigator.clipboard.writeText(L.join("\n"));toast(t("copied"))}catch(e){}
+};
+$("exp").onclick=()=>{$("io").style.display="block";$("doImp").style.display="none";$("io").value=JSON.stringify(S.events);$("io").select();try{navigator.clipboard.writeText($("io").value);toast(t("copied"))}catch(e){}};
+$("imp").onclick=()=>{$("io").style.display="block";$("doImp").style.display="inline-block";$("io").value="";$("io").focus()};
+$("doImp").onclick=()=>{
+  try{
+    const a=JSON.parse($("io").value);if(!Array.isArray(a))throw 0;let n=0;
+    for(const e of a){if(!e.id||!e.title||!/^\d{4}-\d\d-\d\d$/.test(e.date))continue;const o=norm(e),i=S.events.findIndex(x=>x.id===o.id);if(i>=0){o.done=S.events[i].done;S.events[i]=o}else S.events.push(o);n++}
+    render();$("io").style.display="none";$("doImp").style.display="none";toast(t("imported")+n);
+  }catch(e){toast(t("bad"))}
+};
+$("notif").onclick=async()=>{try{const p=await Notification.requestPermission();toast(p==="granted"?t("granted"):t("denied"));checkNotify()}catch(e){toast(t("denied"))}};
+function checkNotify(){
+  try{
+    if(!("Notification" in window)||Notification.permission!=="granted")return;
+    const T=todayN();
+    for(const x of allOcc(T,T+8)){
+      if(isDone(x.e,x.n))continue;
+      for(const r of x.e.rm){
+        const k=x.e.id+"|"+x.n+"|"+r;
+        if(S.notified[k]||!hit(x.e,x.n,r))continue;
+        new Notification(label(x.e,x.n)+": "+x.e.title,{body:fdn(x.n)+(x.e.time?" "+x.e.time.replace(":","")+" hrs":"")});S.notified[k]=1;
+      }
+    }
+    save();
+  }catch(e){}
+}
+$("langBtn").onclick=()=>{S.lang=S.lang==="en"?"bn":"en";render()};
+render();checkNotify();setInterval(()=>{renderAlerts();checkNotify()},60000);
+</script>
+</body>
+</html>
